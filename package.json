@@ -1,0 +1,27 @@
+{
+  "name": "agentor-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Agentor — see what your AI agent actually did, and why.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GabrielDillenburg/agentor.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.12.4",
+  "scripts": {
+    "build": "tsc -b packages/schema packages/adapter-claude-code packages/cli",
+    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}

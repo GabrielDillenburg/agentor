@@ -1,0 +1,33 @@
+{
+  "name": "agentor",
+  "version": "0.1.0",
+  "description": "See what your AI agent actually did, and why. Workflow trees for AI coding sessions.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GabrielDillenburg/agentor.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "agentor": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@agentor/adapter-claude-code": "workspace:*",
+    "@agentor/schema": "workspace:*",
+    "commander": "^14.0.0",
+    "picocolors": "^1.1.0"
+  }
+}

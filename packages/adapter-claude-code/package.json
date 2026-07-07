@@ -1,0 +1,27 @@
+{
+  "name": "@agentor/adapter-claude-code",
+  "version": "0.1.0",
+  "description": "Parses Claude Code session transcripts (~/.claude/projects JSONL) into the Agentor normalized session model.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GabrielDillenburg/agentor.git",
+    "directory": "packages/adapter-claude-code"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@agentor/schema": "workspace:*"
+  }
+}

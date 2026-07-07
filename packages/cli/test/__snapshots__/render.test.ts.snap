@@ -1,0 +1,33 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderSession > matches the full-output snapshot 1`] = `
+"
+agentor · claude-code session fixture-
+“divide-by-zero fix”
+v2.1.186 · mathlib (main) · 2026-07-01 10:00→10:01 UTC · 1m 36s
+
+● Turn 1 Fix the divide function so it handles zero
+  ○ thinking (30 chars)
+  ▪ I'll read the math module first.
+  ✓ Read src/math.ts
+  ✗ Bash Run unit tests — Error: 2 tests failed (6s)
+  ✓ Edit src/math.ts
+  ▪ Fixed: divide now throws on zero.
+  · interrupted by user
+  ▼ context compacted — dropped 42k tokens (50k → 8.0k) · auto
+● Turn 2 Now add tests for the zero case
+  · attachment: file_mention
+  ✓ Write src/math.test.ts
+    ╳ abandoned path · 0 prompts · 1 tool call · 1 event
+    ? unrecognized event · future-widget
+● Turn 3 Wait, don't refactor — just run the new tests
+  ✓ Bash Run the new tests (4s)
+  ▪ All tests pass.
+
+────────────────────────────────────────────────────────────
+3 turns · 6 tool calls (Bash 3, Read 1, Edit 1, Write 1)
+files changed 2 · errors 1 · compactions 1 (dropped 42k tokens) · abandoned paths 1
+tokens in 15k (98% cached) · out 440 · active 45s
+parse warnings 1 (run with --json for details)
+"
+`;
