@@ -7,7 +7,12 @@ export function projectSlug(dir: string): string {
   return resolve(dir).replace(/[/.]/g, '-');
 }
 
-export function projectSessionsDir(cwd: string, claudeHome = join(homedir(), '.claude')): string {
+/** Overridable via AGENTOR_CLAUDE_HOME (useful for tests and non-standard setups). */
+export function defaultClaudeHome(): string {
+  return process.env['AGENTOR_CLAUDE_HOME'] ?? join(homedir(), '.claude');
+}
+
+export function projectSessionsDir(cwd: string, claudeHome = defaultClaudeHome()): string {
   return join(claudeHome, 'projects', projectSlug(cwd));
 }
 

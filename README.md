@@ -53,6 +53,11 @@ pnpm install && pnpm build
 # Interactive TUI: session dashboard for the current project
 node packages/cli/dist/index.js
 
+# Live monitor: auto-attach to the newest session and follow in real time.
+# Start your agent in one terminal, run this in another — it hops to new
+# sessions automatically as they start.
+node packages/cli/dist/index.js watch
+
 # Interactive TUI: open one transcript directly (live-tails running sessions)
 node packages/cli/dist/index.js ui ~/.claude/projects/<project-slug>/<session>.jsonl
 
@@ -66,11 +71,15 @@ node packages/cli/dist/index.js parse [file]
 #   --no-color   plain output
 ```
 
-TUI keys: `j/k` move · `J/K` jump ×10 · `g/G` top/end · `↵` **why** (provenance for the selected tool call) · `v` review queue · `c` context inspector · `t` replay · `f` follow (auto-scroll on live updates) · `d` detail pane · `r` refresh · `h`/`esc` back · `q` quit.
+TUI keys: `j/k` move · `J/K` jump ×10 · `g/G` top/end · `↵` **why** (provenance for the selected tool call) · `v` review queue · `c` context inspector · `t` replay · `f` follow (auto-scroll on live updates) · `d` detail pane · `r` refresh · `h`/`esc` back · `q` quit. On the dashboard: `w` enters watch mode; sessions active in the last 2 minutes show a green ● and an `ACTIVE` badge.
 
 ### Why did it do that?
 
 Select any tool call and press `↵` to get its provenance in one screen: the **triggering prompt**, the **reasoning** right before the change, **what the agent had read** this turn, the **error→retry chain** that led here, the **diff itself**, and the file's history across the session. `v` lists every file the agent touched as a review queue — mark changes reviewed (`space`, persisted across restarts in `~/.agentor/review/`), jump into provenance with `↵`. `c` shows per-turn context-window occupancy (gauge vs a ~200k window), files read, and compaction losses. `t` replays the session step by step.
+
+### Monitor a live session
+
+The core workflow: run your coding agent in one terminal and `agentor watch` in another. Agentor auto-attaches to the newest session (waiting if none exists yet), follows every decision in real time with a `● WATCHING` status, and **hops to new sessions automatically** when you start them. Tool icons (`⚡` bash · `✎` edit · `✚` write · `⊙` read · `⌕` search · `◇` subagent · `⚙` MCP), tree guide lines, and a bordered detail card keep the stream scannable at a glance.
 
 ## Status: v0.1 M3 — provenance, review, context, replay
 

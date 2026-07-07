@@ -23,21 +23,46 @@ type Mode =
   | { kind: 'review' }
   | { kind: 'context' };
 
-const HEADER_ROWS = 2;
+const HEADER_ROWS = 3; // title + totals + separator
 const KEYBAR_ROWS = 1;
-const DETAIL_ROWS = 5; // divider + 4 content lines
+const DETAIL_ROWS = 6; // rounded border (2) + 4 content lines
 
 const saneRows = (n: number | undefined): number => (n && n >= 6 ? n : 24);
 const saneCols = (n: number | undefined): number => (n && n >= 20 ? n : 80);
+
+function StatusPill({ replay, follow, auto, detail }: { replay: boolean; follow: boolean; auto?: boolean; detail?: string }): JSX.Element {
+  if (replay) {
+    return (
+      <Text backgroundColor="magenta" color="black" bold>
+        {` ⏪ REPLAY${detail ? ` ${detail}` : ''} `}
+      </Text>
+    );
+  }
+  if (follow) {
+    return (
+      <Text backgroundColor="green" color="black" bold>
+        {auto ? ' ● WATCHING ' : ' ● LIVE '}
+      </Text>
+    );
+  }
+  return (
+    <Text backgroundColor="yellow" color="black" bold>
+      {' ⏸ PAUSED '}
+    </Text>
+  );
+}
 
 export function SessionView({
   path,
   onBack,
   initialMode,
+  auto,
 }: {
   path: string;
   onBack?: () => void;
   initialMode?: 'review';
+  /** Watch mode: this view was auto-attached and may hop to newer sessions. */
+  auto?: boolean;
 }): JSX.Element {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -199,18 +224,19 @@ export function SessionView({
     <Box flexDirection="column" height={size.rows}>
       <Box justifyContent="space-between">
         <Text wrap="truncate-end">
-          <Text bold>agentor</Text> <Text dimColor>·</Text> <Text bold>{title}</Text>
+          <Text color="cyan" bold>
+            ◆ agentor
+          </Text>{' '}
+          <Text dimColor>·</Text> <Text bold>{title}</Text>
         </Text>
-        <Text>
-          {replay ? (
-            <Text color="yellow">
-              ⏪ replay {selected + 1}/{items.length}
-              {replayTs ? ` · ${replayTs.slice(11, 19)}` : ''}
-            </Text>
-          ) : (
-            <Text color={follow ? 'green' : 'yellow'}>{follow ? '● following' : '○ paused'}</Text>
-          )}
-        </Text>
+        <StatusPill
+          replay={replay}
+          follow={follow}
+          {...(auto !== undefined ? { auto } : {})}
+          {...(replay
+            ? { detail: `${selected + 1}/${items.length}${replayTs ? ` · ${replayTs.slice(11, 19)}` : ''}` }
+            : {})}
+        />
       </Box>
       <Text wrap="truncate-end" dimColor>
         {totals
@@ -222,6 +248,9 @@ export function SessionView({
             ? `error: ${error}`
             : 'loading…'}
       </Text>
+      <Text wrap="truncate-end" dimColor>
+        {'─'.repeat(Math.max(10, size.cols))}
+      </Text>
 
       <Box flexDirection="column" flexGrow={1}>
         {visible.map((item, i) => (
@@ -231,10 +260,16 @@ export function SessionView({
       </Box>
 
       {showDetail && selectedItem ? (
-        <Box flexDirection="column" height={DETAIL_ROWS} overflow="hidden">
-          <Text dimColor>{'─'.repeat(Math.max(10, size.cols))}</Text>
+        <Box
+          flexDirection="column"
+          height={DETAIL_ROWS}
+          overflow="hidden"
+          borderStyle="round"
+          borderDimColor
+          paddingX={1}
+        >
           {itemDetailLines(selectedItem, meta?.cwd)
-            .slice(0, DETAIL_ROWS - 1)
+            .slice(0, DETAIL_ROWS - 2)
             .map((line, i) => (
               <Text key={i} wrap="truncate-end">
                 {line}

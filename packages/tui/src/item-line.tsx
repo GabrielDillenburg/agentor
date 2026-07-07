@@ -1,6 +1,6 @@
 import { Text } from 'ink';
 import type { JSX } from 'react';
-import type { DisplayItem } from '@agentor/schema';
+import type { DisplayItem, ToolCall } from '@agentor/schema';
 import { fmtDuration, fmtTokens, squeeze } from './format.js';
 
 const TEXT_WIDTH = 100;
@@ -9,11 +9,52 @@ export function relPath(p: string, cwd?: string): string {
   return cwd && p.startsWith(`${cwd}/`) ? p.slice(cwd.length + 1) : p;
 }
 
-/** Plain (uncolored) one-line form of an item — used for selected rows and measurements. */
+/** Human-friendly tool name: mcp__server__tool → server:tool. */
+export function toolLabel(name: string): string {
+  if (name.startsWith('mcp__')) {
+    const parts = name.split('__');
+    return `${parts[1] ?? ''}:${parts.slice(2).join('_')}`;
+  }
+  return name;
+}
+
+export function toolIcon(name: string): string {
+  switch (name) {
+    case 'Bash':
+      return '⚡';
+    case 'Read':
+      return '⊙';
+    case 'Edit':
+    case 'MultiEdit':
+    case 'NotebookEdit':
+      return '✎';
+    case 'Write':
+      return '✚';
+    case 'Grep':
+    case 'Glob':
+      return '⌕';
+    case 'Agent':
+    case 'Task':
+      return '◇';
+    case 'WebFetch':
+    case 'WebSearch':
+      return '⇅';
+    default:
+      return name.startsWith('mcp__') ? '⚙' : '·';
+  }
+}
+
+function toolDetailText(call: ToolCall, cwd?: string): string {
+  if (call.fileChange) return relPath(call.fileChange.path, cwd);
+  if (!call.detail) return '';
+  return squeeze(call.detail.startsWith('/') ? relPath(call.detail, cwd) : call.detail, 80);
+}
+
+/** Plain (uncolored) one-line form of an item — used for measurements and detail panes. */
 export function itemPlainLine(item: DisplayItem, cwd?: string): string {
   switch (item.kind) {
     case 'prompt':
-      return `● Turn ${item.turn} ${squeeze(item.node.text, TEXT_WIDTH)}`;
+      return `● Turn ${item.turn} · ${squeeze(item.node.text, TEXT_WIDTH)}`;
     case 'meta':
       return `· ${item.label}`;
     case 'text':
@@ -22,18 +63,20 @@ export function itemPlainLine(item: DisplayItem, cwd?: string): string {
       return item.chars > 0 ? `○ thinking (${fmtTokens(item.chars)} chars)` : '○ thinking';
     case 'tool-call': {
       const call = item.call;
-      const glyph = call.status === 'error' ? '✗' : call.status === 'success' ? '✓' : '◌';
-      const parts = [glyph, call.name];
-      if (call.fileChange) parts.push(relPath(call.fileChange.path, cwd));
-      else if (call.detail) parts.push(squeeze(call.detail.startsWith('/') ? relPath(call.detail, cwd) : call.detail, 80));
-      if (call.status === 'error' && call.resultSummary) parts.push(`— ${squeeze(call.resultSummary, 90)}`);
+      const parts = [toolIcon(call.name), toolLabel(call.name)];
+      const detail = toolDetailText(call, cwd);
+      if (detail) parts.push(detail);
+      if (call.status === 'error') parts.push(`✗ ${squeeze(call.resultSummary ?? 'failed', 90)}`);
       if (call.durationMs != null && call.durationMs >= 3_000) parts.push(`(${fmtDuration(call.durationMs)})`);
       return parts.join(' ');
     }
     case 'compaction': {
       const n = item.node;
       const dropped = n.droppedTokens != null ? fmtTokens(n.droppedTokens) : '?';
-      const range = n.preTokens != null && n.postTokens != null ? ` (${fmtTokens(n.preTokens)} → ${fmtTokens(n.postTokens)})` : '';
+      const range =
+        n.preTokens != null && n.postTokens != null
+          ? ` (${fmtTokens(n.preTokens)} → ${fmtTokens(n.postTokens)})`
+          : '';
       return `▼ context compacted — dropped ${dropped} tokens${range}${n.trigger ? ` · ${n.trigger}` : ''}`;
     }
     case 'attachments':
@@ -49,6 +92,11 @@ export function itemPlainLine(item: DisplayItem, cwd?: string): string {
   }
 }
 
+function Guides({ depth }: { depth: number }): JSX.Element | null {
+  if (depth <= 0) return null;
+  return <Text dimColor>{'│ '.repeat(depth)}</Text>;
+}
+
 export function ItemLine({
   item,
   selected,
@@ -58,96 +106,88 @@ export function ItemLine({
   selected: boolean;
   cwd?: string;
 }): JSX.Element {
-  const indent = '  '.repeat(item.depth);
-  if (selected) {
-    return (
-      <Text wrap="truncate-end" inverse>
-        {indent}
-        {itemPlainLine(item, cwd)}
-      </Text>
-    );
-  }
-  switch (item.kind) {
-    case 'prompt':
-      return (
-        <Text wrap="truncate-end">
-          {indent}
-          <Text color="cyan" bold>{`● Turn ${item.turn}`}</Text>
-          <Text color="cyan"> {squeeze(item.node.text, TEXT_WIDTH)}</Text>
-        </Text>
-      );
-    case 'meta':
-      return (
-        <Text wrap="truncate-end" dimColor>
-          {indent}· {item.label}
-        </Text>
-      );
-    case 'text':
-      return (
-        <Text wrap="truncate-end">
-          {indent}
-          <Text dimColor>▪</Text> {squeeze(item.text, TEXT_WIDTH)}
-        </Text>
-      );
-    case 'thinking':
-      return (
-        <Text wrap="truncate-end" dimColor>
-          {indent}
-          {item.chars > 0 ? `○ thinking (${fmtTokens(item.chars)} chars)` : '○ thinking'}
-        </Text>
-      );
-    case 'tool-call': {
-      const call = item.call;
-      const glyphColor = call.status === 'error' ? 'red' : call.status === 'success' ? 'green' : 'yellow';
-      const glyph = call.status === 'error' ? '✗' : call.status === 'success' ? '✓' : '◌';
-      const detail = call.fileChange
-        ? relPath(call.fileChange.path, cwd)
-        : call.detail
-          ? squeeze(call.detail.startsWith('/') ? relPath(call.detail, cwd) : call.detail, 80)
-          : '';
-      return (
-        <Text wrap="truncate-end">
-          {indent}
-          <Text color={glyphColor}>{glyph}</Text> <Text bold>{call.name}</Text>
-          {detail ? (
-            call.fileChange ? (
-              <Text color="magenta"> {detail}</Text>
-            ) : (
-              <Text> {detail}</Text>
-            )
-          ) : null}
-          {call.status === 'error' && call.resultSummary ? (
-            <Text color="red"> — {squeeze(call.resultSummary, 90)}</Text>
-          ) : null}
-          {call.durationMs != null && call.durationMs >= 3_000 ? (
-            <Text dimColor> ({fmtDuration(call.durationMs)})</Text>
-          ) : null}
-        </Text>
-      );
+  const marker = selected ? (
+    <Text color="cyan" bold>
+      {'❯ '}
+    </Text>
+  ) : (
+    <Text>{'  '}</Text>
+  );
+
+  const body = ((): JSX.Element => {
+    switch (item.kind) {
+      case 'prompt':
+        return (
+          <Text>
+            <Text color="cyan" bold>
+              ● Turn {item.turn}
+            </Text>
+            <Text dimColor> · </Text>
+            <Text color="cyan">{squeeze(item.node.text, TEXT_WIDTH)}</Text>
+          </Text>
+        );
+      case 'meta':
+        return <Text dimColor>· {item.label}</Text>;
+      case 'text':
+        return (
+          <Text>
+            <Text dimColor>▪ </Text>
+            {squeeze(item.text, TEXT_WIDTH)}
+          </Text>
+        );
+      case 'thinking':
+        return (
+          <Text dimColor>
+            {item.chars > 0 ? `○ thinking (${fmtTokens(item.chars)} chars)` : '○ thinking'}
+          </Text>
+        );
+      case 'tool-call': {
+        const call = item.call;
+        const iconColor = call.status === 'error' ? 'red' : call.status === 'success' ? 'green' : 'yellow';
+        const detail = toolDetailText(call, cwd);
+        return (
+          <Text>
+            <Text color={iconColor}>{toolIcon(call.name)} </Text>
+            <Text bold>{toolLabel(call.name)}</Text>
+            {detail ? (
+              call.fileChange ? (
+                <Text color="magenta"> {detail}</Text>
+              ) : (
+                <Text> {detail}</Text>
+              )
+            ) : null}
+            {call.status === 'error' ? (
+              <Text color="red"> ✗ {squeeze(call.resultSummary ?? 'failed', 90)}</Text>
+            ) : null}
+            {call.status === 'pending' ? <Text color="yellow"> …</Text> : null}
+            {call.durationMs != null && call.durationMs >= 3_000 ? (
+              <Text dimColor> ({fmtDuration(call.durationMs)})</Text>
+            ) : null}
+          </Text>
+        );
+      }
+      case 'compaction':
+        return <Text color="yellow">{itemPlainLine(item, cwd)}</Text>;
+      case 'attachments':
+      case 'unknown':
+      case 'abandoned':
+        return <Text dimColor>{itemPlainLine(item, cwd)}</Text>;
+      case 'subagent-header':
+        return (
+          <Text bold dimColor>
+            subagent transcripts
+          </Text>
+        );
     }
-    case 'compaction':
-      return (
-        <Text wrap="truncate-end" color="yellow">
-          {indent}
-          {itemPlainLine(item, cwd)}
-        </Text>
-      );
-    case 'attachments':
-    case 'unknown':
-    case 'abandoned':
-      return (
-        <Text wrap="truncate-end" dimColor>
-          {indent}
-          {itemPlainLine(item, cwd)}
-        </Text>
-      );
-    case 'subagent-header':
-      return (
-        <Text wrap="truncate-end" bold dimColor>
-          {indent}subagent transcripts
-        </Text>
-      );
-  }
+  })();
+
+  return (
+    <Text wrap="truncate-end">
+      {marker}
+      <Guides depth={item.depth} />
+      {selected ? <Text bold>{body}</Text> : body}
+    </Text>
+  );
 }
 
 /** Multi-line detail for the bottom pane. */
@@ -162,7 +202,7 @@ export function itemDetailLines(item: DisplayItem, cwd?: string): string[] {
     case 'tool-call': {
       const call = item.call;
       const lines = [
-        `${call.name} — ${call.status}${call.durationMs != null ? ` · ${fmtDuration(call.durationMs)}` : ''}`,
+        `${toolLabel(call.name)} — ${call.status}${call.durationMs != null ? ` · ${fmtDuration(call.durationMs)}` : ''}`,
       ];
       if (call.detail) lines.push(call.detail.startsWith('/') ? relPath(call.detail, cwd) : call.detail);
       if (call.fileChange) lines.push(`${call.fileChange.action}: ${relPath(call.fileChange.path, cwd)}`);
