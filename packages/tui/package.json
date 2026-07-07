@@ -1,16 +1,13 @@
 {
-  "name": "agentor",
+  "name": "@agentor/tui",
   "version": "0.1.0",
-  "description": "See what your AI agent actually did, and why. Workflow trees for AI coding sessions.",
+  "description": "Interactive terminal UI for Agentor: session dashboard and live-tailing workflow trees.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/GabrielDillenburg/agentor.git",
-    "directory": "packages/cli"
-  },
-  "bin": {
-    "agentor": "./dist/index.js"
+    "directory": "packages/tui"
   },
   "exports": {
     ".": {
@@ -27,8 +24,10 @@
   "dependencies": {
     "@agentor/adapter-claude-code": "workspace:*",
     "@agentor/schema": "workspace:*",
-    "@agentor/tui": "workspace:*",
-    "commander": "^14.0.0",
-    "picocolors": "^1.1.0"
+    "ink": "^6.0.0",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0"
   }
 }

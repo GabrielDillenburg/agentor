@@ -4,6 +4,18 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src"],
-  "references": [{ "path": "../schema" }, { "path": "../adapter-claude-code" }]
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../schema"
+    },
+    {
+      "path": "../adapter-claude-code"
+    },
+    {
+      "path": "../tui"
+    }
+  ]
 }

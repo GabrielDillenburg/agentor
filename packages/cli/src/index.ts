@@ -13,6 +13,18 @@ program
   .version('0.1.0');
 
 program
+  .command('ui [file]', { isDefault: true })
+  .description('Open the interactive TUI: session dashboard + live-tailing workflow tree')
+  .action(async (file: string | undefined) => {
+    if (!process.stdout.isTTY) {
+      fail('the interactive UI needs a TTY — use `agentor parse` for static output');
+      return;
+    }
+    const { runTui } = await import('@agentor/tui');
+    await runTui(file ? { file } : { cwd: process.cwd() });
+  });
+
+program
   .command('parse')
   .description('Render a Claude Code session transcript as a workflow tree')
   .argument('[file]', 'path to a session .jsonl (default: latest session for the current directory)')

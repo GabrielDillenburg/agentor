@@ -2,7 +2,7 @@
   "name": "agentor-monorepo",
   "private": true,
   "version": "0.1.0",
-  "description": "Agentor — see what your AI agent actually did, and why.",
+  "description": "Agentor \u2014 see what your AI agent actually did, and why.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/GabrielDillenburg/agentor.git"
@@ -14,7 +14,7 @@
   },
   "packageManager": "pnpm@10.12.4",
   "scripts": {
-    "build": "tsc -b packages/schema packages/adapter-claude-code packages/cli",
+    "build": "tsc -b packages/schema packages/adapter-claude-code packages/tui packages/cli",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest"
