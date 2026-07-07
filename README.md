@@ -56,6 +56,9 @@ node packages/cli/dist/index.js
 # Interactive TUI: open one transcript directly (live-tails running sessions)
 node packages/cli/dist/index.js ui ~/.claude/projects/<project-slug>/<session>.jsonl
 
+# Review queue: every file the agent changed, with per-change provenance
+node packages/cli/dist/index.js review [file]
+
 # Static tree of the most recent session (pipe-friendly)
 node packages/cli/dist/index.js parse [file]
 #   --full       don't truncate prompts/text
@@ -63,15 +66,23 @@ node packages/cli/dist/index.js parse [file]
 #   --no-color   plain output
 ```
 
-TUI keys: `j/k` move · `J/K` jump ×10 · `g/G` top/end · `f` follow (auto-scroll on live updates) · `d` toggle detail pane · `r` refresh · `h`/`esc` back · `q` quit.
+TUI keys: `j/k` move · `J/K` jump ×10 · `g/G` top/end · `↵` **why** (provenance for the selected tool call) · `v` review queue · `c` context inspector · `t` replay · `f` follow (auto-scroll on live updates) · `d` detail pane · `r` refresh · `h`/`esc` back · `q` quit.
 
-## Status: v0.1 M2 — interactive TUI with live tail
+### Why did it do that?
 
-- [x] `@agentor/schema` — normalized, agent-agnostic session model (turns, tool calls, file changes, compactions, subagent spans, usage) + shared display-item derivation
+Select any tool call and press `↵` to get its provenance in one screen: the **triggering prompt**, the **reasoning** right before the change, **what the agent had read** this turn, the **error→retry chain** that led here, the **diff itself**, and the file's history across the session. `v` lists every file the agent touched as a review queue — mark changes reviewed (`space`, persisted across restarts in `~/.agentor/review/`), jump into provenance with `↵`. `c` shows per-turn context-window occupancy (gauge vs a ~200k window), files read, and compaction losses. `t` replays the session step by step.
+
+## Status: v0.1 M3 — provenance, review, context, replay
+
+- [x] `@agentor/schema` — normalized, agent-agnostic session model (turns, tool calls, file changes, compactions, subagent spans, usage) + shared display-item derivation + provenance/context computations
 - [x] `@agentor/adapter-claude-code` — parses Claude Code JSONL transcripts, fail-soft (unknown events become opaque nodes, never crashes)
 - [x] `agentor parse` — static workflow tree with decision-relevant detail: error→retry chains, abandoned branches, context compactions with dropped-token counts
 - [x] `agentor` (TUI) — session dashboard for the current project + **live-tailing** workflow tree of a running session, keyboard navigation, detail pane
-- [ ] M3: decision provenance panel, change review queue, context inspector, replay
+- [x] **Decision provenance** (`↵`) — why each change happened: prompt, reasoning, context read, prior errors, diff, file history
+- [x] **Review queue** (`v` / `agentor review`) — every file change, per-change provenance, persistent reviewed-state
+- [x] **Context inspector** (`c`) — per-turn window occupancy, files read, tools, compaction losses
+- [x] **Replay** (`t`) — scrub through the session step by step
+- [ ] v0.2: control layer (checkpoints incl. bash side effects, rollback, approval gates) + opencode adapter
 
 See [docs/PLAN.md](docs/PLAN.md) for the full product plan and market research summary.
 

@@ -6,13 +6,22 @@ import type { DisplayItem, Session, SessionTotals } from '@agentor/schema';
 import { buildDisplayItems, buildTree, computeTotals } from '@agentor/schema';
 import { parseSessionFile } from '@agentor/adapter-claude-code';
 import { fmtDuration, fmtTokens } from './format.js';
+import { ContextView } from './context-view.js';
 import { ItemLine, itemDetailLines } from './item-line.js';
+import { ProvenanceView } from './provenance-view.js';
+import { ReviewView } from './review-view.js';
 
 interface Loaded {
   session: Session;
   items: DisplayItem[];
   totals: SessionTotals;
 }
+
+type Mode =
+  | { kind: 'tree' }
+  | { kind: 'provenance'; index: number; from: 'tree' | 'review' }
+  | { kind: 'review' }
+  | { kind: 'context' };
 
 const HEADER_ROWS = 2;
 const KEYBAR_ROWS = 1;
@@ -21,15 +30,25 @@ const DETAIL_ROWS = 5; // divider + 4 content lines
 const saneRows = (n: number | undefined): number => (n && n >= 6 ? n : 24);
 const saneCols = (n: number | undefined): number => (n && n >= 20 ? n : 80);
 
-export function SessionView({ path, onBack }: { path: string; onBack?: () => void }): JSX.Element {
+export function SessionView({
+  path,
+  onBack,
+  initialMode,
+}: {
+  path: string;
+  onBack?: () => void;
+  initialMode?: 'review';
+}): JSX.Element {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [size, setSize] = useState({ rows: saneRows(stdout?.rows), cols: saneCols(stdout?.columns) });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
-  const [follow, setFollow] = useState(true);
+  const [follow, setFollow] = useState(!initialMode);
   const [showDetail, setShowDetail] = useState(true);
+  const [replay, setReplay] = useState(false);
+  const [mode, setMode] = useState<Mode>(initialMode === 'review' ? { kind: 'review' } : { kind: 'tree' });
   const followRef = useRef(follow);
   followRef.current = follow;
 
@@ -78,49 +97,103 @@ export function SessionView({ path, onBack }: { path: string; onBack?: () => voi
   }, [stdout]);
 
   const items = loaded?.items ?? [];
+  const visibleItems = replay ? items.slice(0, selected + 1) : items;
   const last = Math.max(0, items.length - 1);
-
-  useInput((input, key) => {
-    if (input === 'q') return exit();
-    if ((input === 'h' || key.escape) && onBack) return onBack();
-    if (input === 'j' || key.downArrow) {
-      setFollow(false);
-      setSelected((s) => Math.min(last, s + 1));
-    } else if (input === 'k' || key.upArrow) {
-      setFollow(false);
-      setSelected((s) => Math.max(0, s - 1));
-    } else if (key.pageDown || input === 'J') {
-      setFollow(false);
-      setSelected((s) => Math.min(last, s + 10));
-    } else if (key.pageUp || input === 'K') {
-      setFollow(false);
-      setSelected((s) => Math.max(0, s - 10));
-    } else if (input === 'g') {
-      setFollow(false);
-      setSelected(0);
-    } else if (input === 'G') {
-      setSelected(last);
-    } else if (input === 'f') {
-      setFollow((f) => {
-        if (!f) setSelected(last);
-        return !f;
-      });
-    } else if (input === 'd') {
-      setShowDetail((d) => !d);
-    } else if (input === 'r') {
-      void load();
-    }
-  });
-
-  const detailRows = showDetail ? DETAIL_ROWS : 0;
-  const viewport = Math.max(3, size.rows - HEADER_ROWS - KEYBAR_ROWS - detailRows);
-  const start = Math.max(0, Math.min(selected - Math.floor(viewport / 2), items.length - viewport));
-  const visible = items.slice(start, start + viewport);
   const selectedItem = items[selected];
 
+  useInput(
+    (input, key) => {
+      if (input === 'q') return exit();
+      if ((input === 'h' || key.escape) && replay) return setReplay(false);
+      if ((input === 'h' || key.escape) && onBack) return onBack();
+      if (input === 'j' || key.downArrow) {
+        setFollow(false);
+        setSelected((s) => Math.min(last, s + 1));
+      } else if (input === 'k' || key.upArrow) {
+        setFollow(false);
+        setSelected((s) => Math.max(0, s - 1));
+      } else if (key.pageDown || input === 'J') {
+        setFollow(false);
+        setSelected((s) => Math.min(last, s + 10));
+      } else if (key.pageUp || input === 'K') {
+        setFollow(false);
+        setSelected((s) => Math.max(0, s - 10));
+      } else if (input === 'g') {
+        setFollow(false);
+        setSelected(0);
+      } else if (input === 'G') {
+        setSelected(last);
+      } else if (input === 'f') {
+        setReplay(false);
+        setFollow((f) => {
+          if (!f) setSelected(last);
+          return !f;
+        });
+      } else if (input === 'd') {
+        setShowDetail((d) => !d);
+      } else if (input === 'r') {
+        void load();
+      } else if (input === 't') {
+        setFollow(false);
+        setReplay((rp) => !rp);
+      } else if (key.return || input === 'p') {
+        if (selectedItem?.kind === 'tool-call') {
+          setMode({ kind: 'provenance', index: selected, from: 'tree' });
+        }
+      } else if (input === 'v') {
+        setMode({ kind: 'review' });
+      } else if (input === 'c') {
+        setMode({ kind: 'context' });
+      }
+    },
+    { isActive: mode.kind === 'tree' },
+  );
+
   const meta = loaded?.session.meta;
+
+  if (mode.kind === 'provenance') {
+    return (
+      <ProvenanceView
+        items={items}
+        index={mode.index}
+        {...(meta?.cwd ? { cwd: meta.cwd } : {})}
+        onBack={() => setMode(mode.from === 'review' ? { kind: 'review' } : { kind: 'tree' })}
+      />
+    );
+  }
+  if (mode.kind === 'review') {
+    return (
+      <ReviewView
+        items={items}
+        sessionId={meta?.id ?? basename(path, '.jsonl')}
+        {...(meta?.cwd ? { cwd: meta.cwd } : {})}
+        onBack={() => setMode({ kind: 'tree' })}
+        onOpenProvenance={(index) => setMode({ kind: 'provenance', index, from: 'review' })}
+      />
+    );
+  }
+  if (mode.kind === 'context') {
+    return (
+      <ContextView
+        items={items}
+        {...(meta?.cwd ? { cwd: meta.cwd } : {})}
+        onBack={() => setMode({ kind: 'tree' })}
+        onJumpTo={(index) => {
+          setFollow(false);
+          setSelected(index);
+          setMode({ kind: 'tree' });
+        }}
+      />
+    );
+  }
+
   const totals = loaded?.totals;
   const title = meta?.title ?? meta?.id.slice(0, 8) ?? basename(path);
+  const detailRows = showDetail ? DETAIL_ROWS : 0;
+  const viewport = Math.max(3, size.rows - HEADER_ROWS - KEYBAR_ROWS - detailRows);
+  const start = Math.max(0, Math.min(selected - Math.floor(viewport / 2), visibleItems.length - viewport));
+  const visible = visibleItems.slice(start, start + viewport);
+  const replayTs = replay && selectedItem && 'node' in selectedItem ? selectedItem.node.timestamp : undefined;
 
   return (
     <Box flexDirection="column" height={size.rows}>
@@ -129,7 +202,14 @@ export function SessionView({ path, onBack }: { path: string; onBack?: () => voi
           <Text bold>agentor</Text> <Text dimColor>·</Text> <Text bold>{title}</Text>
         </Text>
         <Text>
-          <Text color={follow ? 'green' : 'yellow'}>{follow ? '● following' : '○ paused'}</Text>
+          {replay ? (
+            <Text color="yellow">
+              ⏪ replay {selected + 1}/{items.length}
+              {replayTs ? ` · ${replayTs.slice(11, 19)}` : ''}
+            </Text>
+          ) : (
+            <Text color={follow ? 'green' : 'yellow'}>{follow ? '● following' : '○ paused'}</Text>
+          )}
         </Text>
       </Box>
       <Text wrap="truncate-end" dimColor>
@@ -164,7 +244,7 @@ export function SessionView({ path, onBack }: { path: string; onBack?: () => voi
       ) : null}
 
       <Text dimColor wrap="truncate-end">
-        {`j/k move · J/K jump · g/G top/end · f follow · d detail · r refresh${onBack ? ' · h back' : ''} · q quit`}
+        {`↵ why · v review · c context · t replay · j/k move · g/G top/end · f follow · d detail · r refresh${onBack ? ' · h back' : ''} · q quit`}
       </Text>
     </Box>
   );
