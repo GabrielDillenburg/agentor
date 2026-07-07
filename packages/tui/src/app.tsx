@@ -4,7 +4,15 @@ import { SessionView } from './session-view.js';
 
 type View = { t: 'dashboard' } | { t: 'session'; path: string };
 
-export function App({ file, cwd }: { file?: string; cwd: string }): JSX.Element {
+export function App({
+  file,
+  cwd,
+  initialMode,
+}: {
+  file?: string;
+  cwd: string;
+  initialMode?: 'review';
+}): JSX.Element {
   const [view, setView] = useState<View>(file ? { t: 'session', path: file } : { t: 'dashboard' });
   // Only offer "back" when the dashboard is where the user started.
   const startedOnDashboard = !file;
@@ -13,6 +21,7 @@ export function App({ file, cwd }: { file?: string; cwd: string }): JSX.Element 
     return (
       <SessionView
         path={view.path}
+        {...(initialMode && view.path === file ? { initialMode } : {})}
         {...(startedOnDashboard ? { onBack: () => setView({ t: 'dashboard' }) } : {})}
       />
     );

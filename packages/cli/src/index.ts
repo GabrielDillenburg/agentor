@@ -25,6 +25,24 @@ program
   });
 
 program
+  .command('review')
+  .description('Open the review queue: every file the agent changed, with per-change provenance')
+  .argument('[file]', 'path to a session .jsonl (default: latest session for the current directory)')
+  .action(async (file: string | undefined) => {
+    if (!process.stdout.isTTY) {
+      fail('the interactive UI needs a TTY — use `agentor parse --json` for machine output');
+      return;
+    }
+    const target = file ?? (await findLatestSession(process.cwd())) ?? undefined;
+    if (!target) {
+      fail(`no Claude Code sessions found for ${process.cwd()}`);
+      return;
+    }
+    const { runTui } = await import('@agentor/tui');
+    await runTui({ file: target, view: 'review' });
+  });
+
+program
   .command('parse')
   .description('Render a Claude Code session transcript as a workflow tree')
   .argument('[file]', 'path to a session .jsonl (default: latest session for the current directory)')
