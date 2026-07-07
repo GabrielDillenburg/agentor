@@ -50,24 +50,27 @@ git clone https://github.com/GabrielDillenburg/agentor.git
 cd agentor
 pnpm install && pnpm build
 
-# Render the most recent session for the current project
-node packages/cli/dist/index.js parse
+# Interactive TUI: session dashboard for the current project
+node packages/cli/dist/index.js
 
-# Or a specific transcript
-node packages/cli/dist/index.js parse ~/.claude/projects/<project-slug>/<session>.jsonl
+# Interactive TUI: open one transcript directly (live-tails running sessions)
+node packages/cli/dist/index.js ui ~/.claude/projects/<project-slug>/<session>.jsonl
 
-# Options
+# Static tree of the most recent session (pipe-friendly)
+node packages/cli/dist/index.js parse [file]
 #   --full       don't truncate prompts/text
 #   --json       normalized session + totals as JSON
 #   --no-color   plain output
 ```
 
-## Status: v0.1 M1 — session parser + static tree
+TUI keys: `j/k` move · `J/K` jump ×10 · `g/G` top/end · `f` follow (auto-scroll on live updates) · `d` toggle detail pane · `r` refresh · `h`/`esc` back · `q` quit.
 
-- [x] `@agentor/schema` — normalized, agent-agnostic session model (turns, tool calls, file changes, compactions, subagent spans, usage)
+## Status: v0.1 M2 — interactive TUI with live tail
+
+- [x] `@agentor/schema` — normalized, agent-agnostic session model (turns, tool calls, file changes, compactions, subagent spans, usage) + shared display-item derivation
 - [x] `@agentor/adapter-claude-code` — parses Claude Code JSONL transcripts, fail-soft (unknown events become opaque nodes, never crashes)
 - [x] `agentor parse` — static workflow tree with decision-relevant detail: error→retry chains, abandoned branches, context compactions with dropped-token counts
-- [ ] M2: interactive TUI — live-tailing tree of a running session, session dashboard
+- [x] `agentor` (TUI) — session dashboard for the current project + **live-tailing** workflow tree of a running session, keyboard navigation, detail pane
 - [ ] M3: decision provenance panel, change review queue, context inspector, replay
 
 See [docs/PLAN.md](docs/PLAN.md) for the full product plan and market research summary.
@@ -76,9 +79,10 @@ See [docs/PLAN.md](docs/PLAN.md) for the full product plan and market research s
 
 ```
 packages/
-  schema/                 the normalized session-event model (the contract)
-  adapter-claude-code/    Claude Code JSONL → Session
-  cli/                    agentor bin: parse command + tree renderer
+  schema/                 the normalized session-event model (the contract) + display items
+  adapter-claude-code/    Claude Code JSONL → Session, session discovery
+  tui/                    Ink (React) terminal UI: dashboard + live session view
+  cli/                    agentor bin: TUI launcher + parse command (static renderer)
 ```
 
 The session model is deliberately agent-agnostic: adapters for Codex CLI, Gemini CLI, and opencode are planned (v0.2). Transcript formats are not stable APIs, so adapters are isolated, contract-tested against fixtures, and required to fail soft.
