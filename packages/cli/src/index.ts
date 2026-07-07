@@ -25,6 +25,18 @@ program
   });
 
 program
+  .command('watch')
+  .description('Monitor the live session: auto-attach to the newest session and follow it in real time')
+  .action(async () => {
+    if (!process.stdout.isTTY) {
+      fail('the interactive UI needs a TTY — use `agentor parse` for static output');
+      return;
+    }
+    const { runTui } = await import('@agentor/tui');
+    await runTui({ view: 'watch' });
+  });
+
+program
   .command('review')
   .description('Open the review queue: every file the agent changed, with per-change provenance')
   .argument('[file]', 'path to a session .jsonl (default: latest session for the current directory)')
